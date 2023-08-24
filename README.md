@@ -1,6 +1,18 @@
 ## Build MADlib Image
 
-1. Build the Docker image:
+1. Create an .env file with the following properties:
+```
+export DATA_E2E_PGMADLIB_NS=<namespace of madlib-enabled postgres instance>
+export DATA_E2E_PGMADLIB_IMAGE_NM=postgres_11 #change to the name of the base madlib image you want to use
+export DATA_E2E_BITNAMI_AUTH_USERNAME=postgres 
+export DATA_E2E_BITNAMI_AUTH_PASSWORD=postgres
+export DATA_E2E_BITNAMI_AUTH_POSTGRESPASSWORD=postgres
+export DATA_E2E_BITNAMI_AUTH_DATABASE=madlib
+export DATA_E2E_REGISTRY_USERNAME=<your container registry username>
+export DATA_E2E_REGISTRY_PASSWORD=<your container registry password or token>
+```
+
+2. Build the Docker image:
 ```
 resources/scripts/generate-pgmadlib-baseimage.sh
 ```
