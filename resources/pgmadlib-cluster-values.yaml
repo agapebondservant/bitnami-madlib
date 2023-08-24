@@ -1,0 +1,78 @@
+global:
+  postgresql:
+    nameOverride: pgmadlib
+    storageClass: generic
+    auth:
+      postgresPassword: ${DATA_E2E_BITNAMI_AUTH_POSTGRESPASSWORD}
+      username: ${DATA_E2E_BITNAMI_AUTH_USERNAME}
+      password: ${DATA_E2E_BITNAMI_AUTH_PASSWORD}
+      database: ${DATA_E2E_BITNAMI_AUTH_DATABASE}
+
+image:
+  repository: ${DATA_E2E_REGISTRY_USERNAME}/${DATA_E2E_PGMADLIB_IMAGE_NM}
+  tag: ${DATA_E2E_PGMADLIB_IMAGE_TAG}
+  debug: true
+  pullPolicy: Always
+
+primary:
+  extendedConfiguration: |
+    shared_preload_libraries = 'pgaudit,pg_stat_statements'
+    tcp_keepalives_idle = 30
+    tcp_keepalives_interval = 10
+    tcp_keepalives_count = 5
+  pgHbaConfiguration: |-
+    local   all             all                                     trust
+    local   all             all                                     trust
+    host    all             all             127.0.0.1/32            trust
+    host    all             all             ::1/128                 trust
+  initdb:
+    user: postgres
+    password: postgres
+    scripts:
+      00_init.sh: |-
+        #/bin/bash
+        workdir=`pwd`
+        user_name=`whoami`
+        echo "======================================================================"
+        # echo "    * soft nproc unlimited" > /etc/security/limits.d/postgres-limits.conf
+
+        echo "Downloading MADlib======================================================================"
+        wget -O /madlib/build.tar.gz  https://github.com/apache/madlib/archive/master.tar.gz
+        tar -xzvf /madlib/build.tar.gz -C /madlib
+        rm -rf /madlib/madlib-master/build
+        mkdir /madlib/madlib-master/build
+        cd /madlib/madlib-master/build
+
+        echo "Building MADlib======================================================================"
+        cmake ..
+        make clean
+        make -j$(nproc)
+        make -j$(nproc)
+
+        echo "Installing MADlib======================================================================"
+        chown -R postgres:postgres /madlib/madlib-master/build
+        /madlib/madlib-master/build/src/bin/madpack -s madlib -p postgres -c postgres/postgres@localhost:5432/postgres install
+  extraVolumes:
+  - name: cache-dir
+    persistentVolumeClaim:
+      claimName: pgmadlib-seed-pvc
+
+  extraVolumeMounts:
+    - mountPath: /madlib
+      name: cache-dir
+
+  persistence:
+    size: 16Gi
+
+  podSecurityContext:
+    enabled: true
+    fsGroup: 999
+
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 999
+
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: '3600'
